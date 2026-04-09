@@ -282,6 +282,55 @@ def remove_comments(cif_str: str) -> str:
     return cif_str  # Return as-is if no 'data_' block is found
 
 
+def swap_data_and_space_group_lines(cif_str: str) -> str:
+    """
+    Swap the order of the data_ line and _symmetry_space_group_name_H-M line
+    so that space group appears first.
+    """
+    # Find data line
+    data_match = re.search(r"^data_\S+", cif_str, re.MULTILINE)
+    if not data_match:
+        raise ValueError(
+            f"Could not find 'data_' line in CIF. "
+            f"CIF preview: {cif_str[:300]}"
+        )
+    data_line = data_match.group(0)
+    
+    # Find _symmetry_space_group_name_H-M line
+    spacegroup_match = re.search(
+    r"^_symmetry_space_group_name_H-M\s+(\[.+?\]|'[^']+'|\S+)",
+    cif_str,
+    re.MULTILINE
+    )
+    if not spacegroup_match:
+        raise ValueError(
+            f"Could not find '_symmetry_space_group_name_H-M' line in CIF. "
+            f"CIF preview: {cif_str[:300]}"
+        )
+    spacegroup_line = spacegroup_match.group(0)
+    
+    # Remove data_ line
+    cif_temp = re.sub(
+        r"^" + re.escape(data_line) + r"\n?",
+        "",
+        cif_str,
+        flags=re.MULTILINE
+    )
+    
+    # Remove spacegroup line
+    cif_without_lines = re.sub(
+        r"^" + re.escape(spacegroup_line) + r"\n?",
+        "",
+        cif_temp,
+        flags=re.MULTILINE
+    )
+    
+    # Construct new CIF with swapped order: spacegroup first, then data
+    swapped_cif = spacegroup_line + "\n" + data_line + "\n" + cif_without_lines
+    
+    return swapped_cif
+
+
 def safe_filename(name: str) -> str:
     """Convert string to safe filename by replacing invalid characters."""
     name = name.strip().replace(" ", "_")

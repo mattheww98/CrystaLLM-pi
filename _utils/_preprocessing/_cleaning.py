@@ -29,7 +29,8 @@ from _utils import (
     remove_comments,
     order_or_round_cif,
     add_variable_brackets_to_cif,
-    normalize_property_column
+    normalize_property_column,
+    swap_data_and_space_group_lines
 )
 
 warnings.filterwarnings("ignore")
@@ -55,8 +56,16 @@ def progress_listener(progress_queue, total):
     pbar.close()
 
 
-def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False):
-    """Process a chunk of CIF strings, applying various transformations."""
+def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False, swap_space_group_order=False):
+    """Process a chunk of CIF strings, applying various transformations.
+    
+    Args:
+        chunk: List of (idx, cif_str) tuples
+        oxi: Whether to include oxidation states
+        progress_queue: Queue for progress tracking
+        make_ordered: Whether to order disordered structures
+        swap_space_group_order: Whether to swap data_ and _symmetry_space_group_name_H-M lines
+    """
     results = []
     for (idx, cif_str) in chunk:
         try:
@@ -78,6 +87,8 @@ def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False):
             cif_str = round_numbers(cif_str, decimal_places=DECIMAL_PLACES)
             cif_str = remove_comments(cif_str)
             cif_str = add_variable_brackets_to_cif(cif_str)
+            if swap_space_group_order:
+                cif_str = swap_data_and_space_group_lines(cif_str)
             results.append((idx, cif_str))
         except Exception:
             pass
@@ -97,6 +108,8 @@ if __name__ == "__main__":
                         help="The number of workers to use for processing. Adding too many workers may slow down processing due to overhead.")
     parser.add_argument("--make_disordered_ordered", action="store_true",
                         help="Attempt to convert disordered structures to ordered ones before preprocessing (for COD XRD experiment).")
+    parser.add_argument("--swap_space_group_order", action="store_true",
+                        help="Swap the order of data_ and _symmetry_space_group_name_H-M lines so space group appears first, to generate structures from space group alone.")
     parser.add_argument("--property_columns", type=str, default="[]",
                         help="List of property columns to normalize, e.g., \"['Bandgap (eV)', 'ehull']\". Default is empty list.")
     parser.add_argument("--property1_normaliser", type=str, choices=["power_log", "linear", "signed_log", "log10", "None"], default="None",
@@ -115,6 +128,7 @@ if __name__ == "__main__":
     output_fname = args.output_parquet
     num_workers = args.num_workers
     make_ordered = args.make_disordered_ordered
+    swap_space_group_order = args.swap_space_group_order
 
     print(f"Loading data from {input_fname} as Parquet with zstd compression...")
     dataframe = pd.read_parquet(input_fname)
@@ -151,7 +165,7 @@ if __name__ == "__main__":
             if norm_method != "None":
                 dataframe = normalize_property_column(dataframe, prop, norm_method)
 
-    print("\nLets augment the CIFs now (parallelizing sometimes takes a min before speeding up")
+    print("\nLet's augment the CIFs now (parallelizing sometimes takes a min before speeding up)")
 
     cifs = list(dataframe[['CIF']].itertuples(index=True, name=None))
     chunks = [cifs[i:i + CHUNK_SIZE] for i in range(0, len(cifs), CHUNK_SIZE)]
@@ -169,7 +183,7 @@ if __name__ == "__main__":
     with mp.Pool(processes=num_workers) as pool:
         chunked_results = pool.starmap(
             augment_cif_chunk,
-            [(chunk, OXI_DEFAULT, progress_queue, make_ordered) for chunk in chunks]
+            [(chunk, OXI_DEFAULT, progress_queue, make_ordered, swap_space_group_order) for chunk in chunks]
         )
 
     progress_queue.put(None)
@@ -181,7 +195,8 @@ if __name__ == "__main__":
         dataframe.at[idx, 'CIF'] = cif_str
 
     print("Number of CIFs before filtering out bad ones: ", len(dataframe))
-    dataframe = dataframe[dataframe['CIF'].str.startswith("data_", na=False)]
+    if not swap_space_group_order:
+        dataframe = dataframe[dataframe['CIF'].str.startswith("data_", na=False)]
     print(f"Number of CIFs after filtering: {len(dataframe)}")
 
     dataframe.reset_index(drop=True, inplace=True)

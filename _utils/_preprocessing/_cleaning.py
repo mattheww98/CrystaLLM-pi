@@ -202,7 +202,7 @@ if __name__ == "__main__":
         dataframe.at[idx, 'CIF'] = cif_str
 
     print("Number of CIFs before filtering out bad ones: ", len(dataframe))
-    if not swap_space_group_order:
+    if not swap_space_group_order or not add_sg:
         dataframe = dataframe[dataframe['CIF'].str.startswith("data_", na=False)]
     print(f"Number of CIFs after filtering: {len(dataframe)}")
 

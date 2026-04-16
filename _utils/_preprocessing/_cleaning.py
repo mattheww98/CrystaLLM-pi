@@ -30,7 +30,8 @@ from _utils import (
     order_or_round_cif,
     add_variable_brackets_to_cif,
     normalize_property_column,
-    swap_data_and_space_group_lines
+    swap_data_and_space_group_lines,
+    add_space_group
 )
 
 warnings.filterwarnings("ignore")
@@ -65,6 +66,7 @@ def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False, swap_space
         progress_queue: Queue for progress tracking
         make_ordered: Whether to order disordered structures
         swap_space_group_order: Whether to swap data_ and _symmetry_space_group_name_H-M lines
+        add_sg: Whether to repeat space group at top of CIF
     """
     results = []
     for (idx, cif_str) in chunk:
@@ -89,6 +91,8 @@ def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False, swap_space
             cif_str = add_variable_brackets_to_cif(cif_str)
             if swap_space_group_order:
                 cif_str = swap_data_and_space_group_lines(cif_str)
+            if add_sg:
+                cif_str = add_space_group(cif_str)
             results.append((idx, cif_str))
         except Exception:
             pass
@@ -110,6 +114,8 @@ if __name__ == "__main__":
                         help="Attempt to convert disordered structures to ordered ones before preprocessing (for COD XRD experiment).")
     parser.add_argument("--swap_space_group_order", action="store_true",
                         help="Swap the order of data_ and _symmetry_space_group_name_H-M lines so space group appears first, to generate structures from space group alone.")
+    parser.add_argument("--add_sg", action="store_true",
+                        help="Repeat space group at top of CIF to enable conditioning on space group.")
     parser.add_argument("--property_columns", type=str, default="[]",
                         help="List of property columns to normalize, e.g., \"['Bandgap (eV)', 'ehull']\". Default is empty list.")
     parser.add_argument("--property1_normaliser", type=str, choices=["power_log", "linear", "signed_log", "log10", "None"], default="None",
@@ -129,6 +135,7 @@ if __name__ == "__main__":
     num_workers = args.num_workers
     make_ordered = args.make_disordered_ordered
     swap_space_group_order = args.swap_space_group_order
+    add_sg = args.add_sg
 
     print(f"Loading data from {input_fname} as Parquet with zstd compression...")
     dataframe = pd.read_parquet(input_fname)
@@ -183,7 +190,7 @@ if __name__ == "__main__":
     with mp.Pool(processes=num_workers) as pool:
         chunked_results = pool.starmap(
             augment_cif_chunk,
-            [(chunk, OXI_DEFAULT, progress_queue, make_ordered, swap_space_group_order) for chunk in chunks]
+            [(chunk, OXI_DEFAULT, progress_queue, make_ordered, swap_space_group_order,add_sg) for chunk in chunks]
         )
 
     progress_queue.put(None)

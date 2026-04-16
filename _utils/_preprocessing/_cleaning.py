@@ -57,7 +57,7 @@ def progress_listener(progress_queue, total):
     pbar.close()
 
 
-def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False, swap_space_group_order=False):
+def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False, swap_space_group_order=False,add_sg=False):
     """Process a chunk of CIF strings, applying various transformations.
     
     Args:
@@ -66,7 +66,7 @@ def augment_cif_chunk(chunk, oxi, progress_queue, make_ordered=False, swap_space
         progress_queue: Queue for progress tracking
         make_ordered: Whether to order disordered structures
         swap_space_group_order: Whether to swap data_ and _symmetry_space_group_name_H-M lines
-        add_sg: Whether to repeat space group at top of CIF
+        add_sg: Whether to prepend CIF with space group
     """
     results = []
     for (idx, cif_str) in chunk:

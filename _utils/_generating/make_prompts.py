@@ -174,7 +174,7 @@ def create_automatic_prompts(df, cif_column, level, condition_columns=None):
             if pd.isna(cif_content):
                 return ""
             sg = extract_space_group_symbol(cif_content)
-            return f"<bos>\n{sg}\ndata_[" 
+            return f"<bos>\n[{sg}]\ndata_[" 
     elif level == "level_2": # composition only
         def extract_prompt(cif_content):
             cif_content = augment_cif_for_prompt(cif_content)
@@ -290,7 +290,7 @@ def create_manual_prompts(compositions, condition_lists, raw_mode=False, level="
             
             if level == "level_1b":
                 sg = spacegroups[i] if spacegroups else "P1"
-                base_prompt = f"<bos>\n{sg}\ndata_["
+                base_prompt = f"<bos>\n[{sg}]\ndata_["
 
             elif level == "level_2":
                 if comp is None:
@@ -339,7 +339,7 @@ def create_manual_prompts(compositions, condition_lists, raw_mode=False, level="
                 
                 if level == "level_1b":
                     sg = spacegroups[i] if spacegroups else "P1"
-                    base_prompt = f"<bos>\n{sg}\ndata_["
+                    base_prompt = f"<bos>\n[{sg}]\ndata_["
                     
                 elif level == "level_2":
                     if comp is None:

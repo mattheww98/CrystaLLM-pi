@@ -475,7 +475,7 @@ if __name__ == "__main__":
         
         # Parse spacegroups
         spacegroups = None
-        if args.spacegroups and level == "level_4":
+        if args.spacegroups and (level == "level_4" or level == "level_1b"):
             spacegroup_str = re.sub(r'^\{|\}$', '', args.spacegroups.strip())
             spacegroups = [sg.strip() for sg in spacegroup_str.split(',') if sg.strip()]
             # make sure spacegroup exists using
@@ -487,7 +487,7 @@ if __name__ == "__main__":
             for sg in spacegroups:
                 if sg not in valid_spacegroups:
                     raise ValueError(f"Invalid spacegroup: {sg} (it needs to be formatted like in the tokenizers spacegroups.txt file)")
-    
+
         # Parse condition lists
         condition_lists = []
         if args.condition_lists:

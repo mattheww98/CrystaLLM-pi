@@ -119,6 +119,16 @@ def extract_composition_from_cif(cif_content):
 
     return match.group(1) if match else None
 
+def extract_space_group_symbol(cif_content):
+    match = re.search(r"_symmetry_space_group_name_H-M\s+('([^']+)'|(\S+))", cif_content)
+    if match:
+        # If group(2) exists => it's the content inside single quotes;
+        # otherwise group(3) => unquoted
+        # print(f"match.group(2): {match.group(2)}")
+        return match.group(2) if match.group(2) else match.group(3)
+    raise Exception(f"could not extract space group from:\n{cif_content}")
+
+
 def create_automatic_prompts(df, cif_column, level, condition_columns=None):
     """Generate prompts automatically from CIF data based on specified level."""
     df = df.copy()
@@ -159,7 +169,12 @@ def create_automatic_prompts(df, cif_column, level, condition_columns=None):
             if pd.isna(cif_content):
                 return ""
             return "<bos>\ndata_["
-    
+    elif level == "level_1b": # minimal with sg first
+        def extract_prompt(cif_content):
+            if pd.isna(cif_content):
+                return ""
+            sg = extract_space_group_symbol(cif_content)
+            return f"<bos>\n{sg}\ndata_[" 
     elif level == "level_2": # composition only
         def extract_prompt(cif_content):
             cif_content = augment_cif_for_prompt(cif_content)
@@ -189,7 +204,7 @@ def create_automatic_prompts(df, cif_column, level, condition_columns=None):
             return "<bos>\n" + parts[0]
     
     else:
-        raise ValueError(f"Invalid level: {level}. Must be one of level_1, level_2, level_3, level_4")
+        raise ValueError(f"Invalid level: {level}. Must be one of level_1, level_1b, level_2, level_3, level_4")
     
     df['Prompt'] = df[cif_column].apply(extract_prompt)
     return df
@@ -273,6 +288,13 @@ def create_manual_prompts(compositions, condition_lists, raw_mode=False, level="
             if level == "level_1":
                 base_prompt = "<bos>\ndata_["
             
+            if level == "level_1b":
+                if comp == None:
+                    base_prompt = "<bos>\ndata_["
+                else:
+                    sg = spacegroups[i] if spacegroups else "P1"
+                    base_prompt = f"<bos>\n{sg}\ndata_["
+
             elif level == "level_2":
                 if comp is None:
                     base_prompt = "<bos>\ndata_["
@@ -318,6 +340,13 @@ def create_manual_prompts(compositions, condition_lists, raw_mode=False, level="
                 if level == "level_1":
                     base_prompt = "<bos>\ndata_["
                 
+                if level == "level_1b":
+                    if comp == None:
+                        base_prompt = "<bos>\ndata_["
+                    else:
+                        sg = spacegroups[i] if spacegroups else "P1"
+                        base_prompt = f"<bos>\n{sg}\ndata_["
+                    
                 elif level == "level_2":
                     if comp is None:
                         base_prompt = "<bos>\ndata_["
@@ -377,7 +406,7 @@ if __name__ == "__main__":
     # For both modes
     parser.add_argument("--output_parquet", required=True, help="Path to output parquet file")
     parser.add_argument("--raw", action="store_true", help="Use raw conditioning format")
-    parser.add_argument("--level", type=str, choices=["level_1", "level_2", "level_3", "level_4"], 
+    parser.add_argument("--level", type=str, choices=["level_1", "level_1b", "level_2", "level_3", "level_4"], 
                         help="Prompt level (required for automatic mode, optional for manual mode, default: level_2)")
     
     # Automatic mode arguments

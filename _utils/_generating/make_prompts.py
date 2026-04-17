@@ -289,11 +289,8 @@ def create_manual_prompts(compositions, condition_lists, raw_mode=False, level="
                 base_prompt = "<bos>\ndata_["
             
             if level == "level_1b":
-                if comp == None:
-                    base_prompt = "<bos>\ndata_["
-                else:
-                    sg = spacegroups[i] if spacegroups else "P1"
-                    base_prompt = f"<bos>\n{sg}\ndata_["
+                sg = spacegroups[i] if spacegroups else "P1"
+                base_prompt = f"<bos>\n{sg}\ndata_["
 
             elif level == "level_2":
                 if comp is None:
@@ -341,11 +338,8 @@ def create_manual_prompts(compositions, condition_lists, raw_mode=False, level="
                     base_prompt = "<bos>\ndata_["
                 
                 if level == "level_1b":
-                    if comp == None:
-                        base_prompt = "<bos>\ndata_["
-                    else:
-                        sg = spacegroups[i] if spacegroups else "P1"
-                        base_prompt = f"<bos>\n{sg}\ndata_["
+                    sg = spacegroups[i] if spacegroups else "P1"
+                    base_prompt = f"<bos>\n{sg}\ndata_["
                     
                 elif level == "level_2":
                     if comp is None:

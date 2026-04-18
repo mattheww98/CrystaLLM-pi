@@ -335,7 +335,7 @@ def add_space_group(cif_str: str) -> str:
     Add the space group line at the top of the CIF, using the value from the existing _symmetry_space_group_name_H-M line.
     """
     space_group_symbol = extract_space_group_symbol(cif_str)
-    new_line = f"{space_group_symbol}_sg\n"
+    new_line = f"[{space_group_symbol[1:-1]}_sg]\n"
     
     cif_with_sg = new_line + cif_str
     

@@ -379,9 +379,11 @@ def create_manual_prompts(compositions, condition_lists, raw_mode=False, level="
                     
                 prompts.append(prompt)
                 conds.append(cond)
-                
+
+    # For the case of non-condiitional prompt with spacegroup prepended            
     if level == "level_1b" and len(prompts) == 1 and spacegroups:
             prompts = [f"<bos>\n[{sg}_sg]\ndata_[" for sg in spacegroups]
+            conds = ["None"] * len(prompts)
     
     return pd.DataFrame({'Prompt': prompts, 'condition_vector': conds})
 

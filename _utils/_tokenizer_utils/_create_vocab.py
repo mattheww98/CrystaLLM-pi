@@ -1,7 +1,7 @@
 """
 Create vocabulary file for the tokenizer. CIF specific vocab and syntax.
 
-If you want to add new tokens, you can put therm in the 
+If you want to add new tokens, you can put them in the 
 respective sections in the code below.
 
 Then you run the code to get new vocabulary file., which you should plug into 
@@ -10,8 +10,8 @@ _utils/_preprocessing/_save_tokenizer_to_HF.py
 
 import json
 
-INPUT_SPACE_GROUPS_FILE = "_utils/_tokenizer_utils/spacegroups.txt"
-OUTPUT_VOCAB_FILE = "_utils/_tokenizer_utils/vocabulary.json"
+INPUT_SPACE_GROUPS_FILE = "spacegroups.txt"
+OUTPUT_VOCAB_FILE = "vocabulary.json"
 
 # generates the vocabulary for the tokenizer
 def generate_vocabulary():

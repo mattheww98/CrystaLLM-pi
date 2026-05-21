@@ -94,6 +94,52 @@ def resize_positional_embeddings(model, new_n_positions):
     return model
 
 
+def shift_positional_embeddings(model, shift, preserve_first_n_positions=2, init_method="copy"):
+    """Shift pretrained positional embeddings by `shift` after the preserved prefix positions.
+
+    This is useful when fine-tuning on data that inserts new tokens after the first few
+    tokens (for example, adding a space-group prefix after '<bos>' and '\n').
+    """
+    if shift <= 0:
+        return model
+
+    old_wpe = model.transformer.wpe.weight.data.clone()
+    n_positions, dim = old_wpe.shape
+
+    if preserve_first_n_positions < 0:
+        raise ValueError("preserve_first_n_positions must be non-negative")
+    if preserve_first_n_positions + shift > n_positions:
+        raise ValueError(
+            f"Cannot shift by {shift} with preserve_first_n_positions={preserve_first_n_positions}: "
+            f"requires at most {n_positions - preserve_first_n_positions} positions"
+        )
+
+    new_wpe = old_wpe.clone()
+    new_wpe[:preserve_first_n_positions] = old_wpe[:preserve_first_n_positions]
+
+    # Initialize the new inserted positions.
+    if init_method == "copy":
+        new_wpe[preserve_first_n_positions: preserve_first_n_positions + shift] = old_wpe[preserve_first_n_positions: preserve_first_n_positions + shift]
+    elif init_method == "zeros":
+        new_wpe[preserve_first_n_positions: preserve_first_n_positions + shift] = 0.0
+    elif init_method == "sinusoidal":
+        for pos in range(preserve_first_n_positions, preserve_first_n_positions + shift):
+            for i in range(0, dim, 2):
+                new_wpe[pos, i] = math.sin(pos / (10000 ** (i / dim)))
+                if i + 1 < dim:
+                    new_wpe[pos, i + 1] = math.cos(pos / (10000 ** (i / dim)))
+    else:
+        raise ValueError(f"Unsupported init_method={init_method}")
+
+    # Shift the rest of the pretrained positional embeddings to the right.
+    if preserve_first_n_positions + shift < n_positions:
+        new_wpe[preserve_first_n_positions + shift:] = old_wpe[preserve_first_n_positions: n_positions - shift]
+
+    model.transformer.wpe.weight.data.copy_(new_wpe)
+    print(f"Shifted positional embeddings by {shift} positions after {preserve_first_n_positions} preserved tokens")
+    return model
+
+
 def load_pretrained_model(args, tokenizer):
     """Load pretrained models with auto-detection of conditional architectures."""
     print(f"Loading model weights from {args.pretrained_model_dir}")
@@ -148,6 +194,14 @@ def load_pretrained_model(args, tokenizer):
     model.resize_token_embeddings(vocab_size)
     if model.config.n_positions != target_n_positions:
         model = resize_positional_embeddings(model, target_n_positions)
+
+    if getattr(args, "position_embedding_shift", 0) > 0:
+        model = shift_positional_embeddings(
+            model,
+            shift=args.position_embedding_shift,
+            preserve_first_n_positions=args.position_embedding_shift_preserve,
+            init_method=args.position_embedding_shift_init,
+        )
 
     return model
 
